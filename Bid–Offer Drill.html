@@ -1,0 +1,1338 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Bid–Offer Drill</title>
+<style>
+:root {
+  --ground: #eef2f0;
+  --panel: #ffffff;
+  --ink: #13201b;
+  --muted: #5b6b64;
+  --line: #d5ddd9;
+  --accent: #1d5c4a;
+  --accent-ink: #ffffff;
+  --good: #147a4f;
+  --good-bg: #e2f3ea;
+  --bad: #b33a2c;
+  --bad-bg: #f8e5e2;
+  --quote-bg: #13201b;
+  --quote-ink: #f2f6f4;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0f1714; --panel: #17221e; --ink: #e6eeea; --muted: #93a39c;
+    --line: #2a3833; --accent: #5fbf9b; --accent-ink: #0c1411;
+    --good: #5fcf98; --good-bg: #173327; --bad: #f08a7c; --bad-bg: #3a1f1b;
+    --quote-bg: #0a100e; --quote-ink: #e6eeea;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0f1714; --panel: #17221e; --ink: #e6eeea; --muted: #93a39c;
+  --line: #2a3833; --accent: #5fbf9b; --accent-ink: #0c1411;
+  --good: #5fcf98; --good-bg: #173327; --bad: #f08a7c; --bad-bg: #3a1f1b;
+  --quote-bg: #0a100e; --quote-ink: #e6eeea;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font: 18px/1.5 var(--sans);
+  padding-inline: 16px;
+  padding-block: calc(20px + env(safe-area-inset-top, 0px)) calc(48px + env(safe-area-inset-bottom, 0px));
+}
+.wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.num { font-variant-numeric: tabular-nums; }
+
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h1 span { color: var(--muted); font-weight: 500; font-size: 0.8em; margin-left: 6px; white-space: nowrap; }
+
+/* History */
+.history { font-size: 0.85rem; }
+.history-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.table-scroll { overflow-x: auto; max-height: 190px; overflow-y: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+th { font-weight: 600; color: var(--muted); position: sticky; top: 0; background: var(--ground); }
+td.r, th.r { text-align: right; padding-right: 0; }
+tr.current td { color: var(--accent); font-weight: 600; }
+.empty { color: var(--muted); padding: 8px 0; margin: 0; }
+.linkbtn { background: none; border: 0; color: var(--muted); font: inherit; font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 4px; }
+.linkbtn:hover { color: var(--ink); }
+.confirm { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--muted); }
+
+/* Score strip */
+.score { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.score-figs { display: flex; gap: 20px; align-items: baseline; }
+.fig b { font-size: 1.6rem; font-weight: 700; display: block; line-height: 1.1; }
+.fig small { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+/* Focus areas (adaptive model) */
+.focus { font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px; }
+.switch { display: inline-flex; gap: 6px; align-items: center; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+.switch input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.focus-summary { margin: 0; color: var(--ink); }
+.focus-summary b { color: var(--bad); }
+.focus .table-scroll { max-height: 240px; }
+.focus td.type { white-space: normal; min-width: 120px; }
+.focus th.r, .focus td.r { padding-left: 10px; }
+.focus-key { margin: 6px 0 0; font-size: 0.75rem; color: var(--muted); }
+.focus tr.is-focus td.type { color: var(--bad); font-weight: 600; }
+.bar { display: inline-block; vertical-align: middle; width: 36px; height: 6px; border-radius: 3px; background: var(--line); margin-right: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.focus-tag { color: var(--bad); }
+
+/* Question card */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 20px; display: flex; flex-direction: column; gap: 18px; }
+.prompt { font-size: 1.3rem; line-height: 1.45; margin: 0; text-wrap: pretty; }
+.quote {
+  display: inline-block; font-family: var(--mono); font-weight: 700;
+  background: var(--quote-bg); color: var(--quote-ink);
+  padding: 1px 9px; border-radius: 5px; white-space: nowrap; font-size: 0.95em;
+}
+.trades { font-family: var(--mono); font-weight: 600; }
+
+.options { display: flex; flex-direction: column; gap: 10px; }
+.opt {
+  display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left;
+  font: inherit; font-size: 1.08rem; color: var(--ink);
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 13px 14px; cursor: pointer; transition: border-color .12s, background .12s;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:disabled { cursor: default; }
+.opt kbd { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin-top: 2px; flex: none; }
+.opt.is-correct { border-color: var(--good); background: var(--good-bg); }
+.opt.is-wrong { border-color: var(--bad); background: var(--bad-bg); }
+.opt.dim { opacity: 0.55; }
+
+.textrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.textrow input {
+  flex: 1 1 160px; min-width: 0; font: inherit; font-size: 1.3rem; font-family: var(--mono);
+  padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink);
+}
+.textrow input:focus { outline: none; border-color: var(--accent); }
+.hint { font-size: 0.85rem; color: var(--muted); margin: -8px 0 0; }
+.hint.err { color: var(--bad); font-weight: 600; }
+
+.btn {
+  font: inherit; font-weight: 600; font-size: 1.05rem; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 12px 20px;
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-size: 0.9rem; padding: 8px 14px; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.feedback { border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.feedback.good { background: var(--good-bg); }
+.feedback.bad { background: var(--bad-bg); }
+.verdict { font-weight: 700; }
+.good .verdict { color: var(--good); }
+.bad .verdict { color: var(--bad); }
+.explain { margin: 0; font-size: 1rem; }
+.adapt-note { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+.next-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.keys { font-size: 0.8rem; color: var(--muted); }
+
+/* Question log + review */
+.log { display: flex; flex-direction: column; gap: 8px; }
+.log-meta { font-size: 0.8rem; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-width: 36px; height: 32px; padding: 0 8px; border-radius: 6px; cursor: pointer;
+  font: 600 0.82rem var(--sans); font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);
+}
+.chip.ok { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.chip.bad { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+.chip.sel { outline: 3px solid var(--accent); outline-offset: 1px; }
+.review {
+  background: var(--panel); border: 1.5px solid var(--accent); border-radius: 10px;
+  padding: 18px 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.review-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.review .prompt { font-size: 1.12rem; }
+.review .opt { cursor: default; pointer-events: none; font-size: 1rem; }
+.pick { font-style: normal; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.typed { margin: 0; }
+#history tbody tr { cursor: pointer; }
+#history tr.viewing td { box-shadow: inset 0 -2px 0 var(--accent); }
+
+@media (max-width: 420px) {
+  body { font-size: 17px; }
+  .prompt { font-size: 1.18rem; }
+  .card { padding: 18px 14px; }
+  .keys { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="wrap">
+  <header>
+    <h1>Bid–Offer Drill <span>market-making reps</span></h1>
+  </header>
+
+  <section class="history" aria-labelledby="hist-label">
+    <div class="history-head">
+      <span class="label" id="hist-label">Past sessions</span>
+      <span id="clear-slot"><button class="linkbtn" id="clear-btn" type="button">Clear history</button></span>
+    </div>
+    <div id="history"></div>
+  </section>
+
+  <section class="score" aria-live="polite">
+    <div class="score-figs">
+      <div class="fig"><b class="num" id="s-score">0 / 0</b><small>This session</small></div>
+      <div class="fig"><b class="num" id="s-acc">—</b><small>Accuracy</small></div>
+      <div class="fig"><b class="num" id="s-streak">0</b><small>Streak</small></div>
+    </div>
+    <button class="btn ghost" id="new-session" type="button">Start new session</button>
+  </section>
+
+  <section class="focus" aria-labelledby="focus-label">
+    <div class="history-head">
+      <span class="label" id="focus-label">Focus areas</span>
+      <label class="switch" for="adaptive-toggle"><input type="checkbox" id="adaptive-toggle" checked> Ask more of what I miss</label>
+    </div>
+    <p class="focus-summary" id="focus-summary"></p>
+    <details id="focus-details">
+      <summary class="linkbtn">All question types</summary>
+      <div id="focus-table"></div>
+    </details>
+  </section>
+
+  <section class="log" aria-labelledby="log-label">
+    <div class="history-head">
+      <span class="label" id="log-label">Question log</span>
+      <span class="log-meta" id="log-meta"></span>
+    </div>
+    <div class="chips" id="log-chips"></div>
+    <div class="review" id="review" hidden></div>
+  </section>
+
+  <main class="card" id="card"></main>
+</div>
+
+<script>
+/*
+ * Question bank. Each template is a function returning a fresh random question:
+ *   { tag, prompt, options:[{t, ok}] }            multiple choice
+ *   { tag, prompt, text:true, check(v), answer }  typed numeric answer
+ * plus `explain`, and optionally `fixedOrder` (don't shuffle options).
+ *
+ * The function name is the question type's id; the adaptive model keys on it.
+ */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else root.DrillQuestions = api;
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  // ---------- helpers ----------
+  const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+  const pick = (arr) => arr[rnd(0, arr.length - 1)];
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = rnd(0, i); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  const clean = (x) => String(Number(x.toFixed(4)));
+  const q = (text) => '<span class="quote">' + text + '</span>';
+
+  // Reads a typed answer: a plain number or simple arithmetic like "88.5-87.5".
+  // Hand-rolled parser (no eval) for + − × ÷ and parentheses.
+  function evalAnswer(raw) {
+    const s = String(raw).replace(/[\s$]/g, "").replace(/[−–—]/g, "-").replace(/[×x]/gi, "*").replace(/÷/g, "/").replace(/,/g, ".");
+    if (!s || !/^[0-9.+\-*/()]+$/.test(s)) return NaN;
+    let i = 0;
+    const expr = () => {
+      let v = term();
+      while (s[i] === "+" || s[i] === "-") { const op = s[i++]; const r = term(); v = op === "+" ? v + r : v - r; }
+      return v;
+    };
+    const term = () => {
+      let v = factor();
+      while (s[i] === "*" || s[i] === "/") { const op = s[i++]; const r = factor(); v = op === "*" ? v * r : v / r; }
+      return v;
+    };
+    const factor = () => {
+      if (s[i] === "-") { i++; return -factor(); }
+      if (s[i] === "+") { i++; return factor(); }
+      if (s[i] === "(") { i++; const v = expr(); if (s[i++] !== ")") throw 0; return v; }
+      const m = /^(\d+\.?\d*|\.\d+)/.exec(s.slice(i));
+      if (!m) throw 0;
+      i += m[0].length;
+      return parseFloat(m[0]);
+    };
+    try { const v = expr(); return i === s.length && isFinite(v) ? v : NaN; } catch (e) { return NaN; }
+  }
+
+  // Price conventions: whole numbers, halves, quarters, nickels.
+  function pickStyle() {
+    return pick([
+      { tick: 1, dp: 0, lo: 8, hi: 180 },
+      { tick: 1, dp: 0, lo: 8, hi: 180 },
+      { tick: 0.5, dp: 1, lo: 40, hi: 400 },
+      { tick: 0.25, dp: 2, lo: 200, hi: 1200 },
+      { tick: 0.05, dp: 2, lo: 100, hi: 2000 }
+    ]);
+  }
+
+  // A random two-sided quote, built in integer ticks to avoid float drift.
+  function makeQuote() {
+    const style = pickStyle();
+    const bidT = rnd(style.lo, style.hi);
+    const sprT = rnd(1, 6);
+    const bid = bidT * style.tick, ask = (bidT + sprT) * style.tick;
+    return {
+      bid, ask, style, bidT, sprT,
+      px: (ticks) => (ticks * style.tick).toFixed(style.dp),
+      spread: sprT * style.tick,
+      b: bid.toFixed(style.dp),
+      a: ask.toFixed(style.dp),
+      s: clean(sprT * style.tick),
+      mid: clean((bid + ask) / 2),
+      text: bid.toFixed(style.dp) + " at " + ask.toFixed(style.dp)
+    };
+  }
+
+  // ---------- question templates ----------
+  const templates = [
+    function readQuote() {
+      const Q = makeQuote();
+      return {
+        tag: "Reading a quote",
+        prompt: "The market is " + q(Q.text) + ". Which price do you sell at, and which do you buy at?",
+        options: [
+          { t: "Sell at " + Q.b + ", buy at " + Q.a, ok: true },
+          { t: "Sell at " + Q.a + ", buy at " + Q.b },
+          { t: "Both at the mid, " + Q.mid },
+          { t: "Sell at " + Q.a + ", buy at " + Q.a }
+        ],
+        explain: Q.b + " is the bid (what someone will pay you), so you sell there; " + Q.a + " is the offer, so you buy there."
+      };
+    },
+
+    function aggressorVerbs() {
+      const v = pick([
+        { s: "You <b>lift an offer</b>.", buy: true, why: "Lifting an offer means taking someone's offer, so you bought." },
+        { s: "You <b>hit a bid</b>.", buy: false, why: "Hitting a bid means selling into someone's bid, so you sold." },
+        { s: "Someone <b>hits your bid</b>.", buy: true, why: "They sold into your bid, so you're the buyer." },
+        { s: "Someone <b>lifts your offer</b>.", buy: false, why: "They bought your offer, so you're the seller." }
+      ]);
+      return {
+        tag: "Hit or lift",
+        prompt: v.s + " Did you buy or sell?",
+        options: [{ t: "Bought", ok: v.buy }, { t: "Sold", ok: !v.buy }],
+        fixedOrder: true,
+        explain: v.why
+      };
+    },
+
+    function flattenPosition() {
+      const Q = makeQuote();
+      const n = rnd(1, 12);
+      const long = Math.random() < 0.5;
+      const wrongN = pick([n + rnd(1, 3), n * 2]);
+      const sell = (k) => "Sell " + k + " — hit the bid at " + Q.b;
+      const buy = (k) => "Buy " + k + " — lift the offer at " + Q.a;
+      return {
+        tag: "Getting flat",
+        prompt: "The market is " + q(Q.text) + ". You're <b>" + (long ? "long " : "short ") + n + "</b>. What single trade makes you flat?",
+        options: long
+          ? [{ t: sell(n), ok: true }, { t: "Sell " + n + " — lift the offer at " + Q.a }, { t: buy(n) }, { t: sell(wrongN) }]
+          : [{ t: buy(n), ok: true }, { t: "Buy " + n + " — hit the bid at " + Q.b }, { t: sell(n) }, { t: buy(wrongN) }],
+        explain: long
+          ? "Long " + n + " means you must sell " + n + "; selling immediately means hitting the bid at " + Q.b + "."
+          : "Short " + n + " means you must buy " + n + "; buying immediately means lifting the offer at " + Q.a + "."
+      };
+    },
+
+    function tradeSequence() {
+      const Q = makeQuote();
+      let trades, net;
+      do {
+        trades = Array.from({ length: rnd(2, 4) }, () => ({ buy: Math.random() < 0.5, n: rnd(1, 10) }));
+        net = trades.reduce((s, t) => s + (t.buy ? t.n : -t.n), 0);
+      } while (net === 0);
+      const gross = trades.reduce((s, t) => s + t.n, 0);
+      const k = Math.abs(net);
+      const wrongK = gross !== k ? gross : k + 2;
+      const words = trades.map((t, i) => (i ? "then " : "") + (t.buy ? "buy " : "sell ") + t.n);
+      const posName = (x) => (x > 0 ? "Long " : "Short ") + Math.abs(x);
+      const fix = (x, sizeOverride) => {
+        const s = sizeOverride || Math.abs(x);
+        return x < 0 ? "buy " + s + ", lifting the offer at " + Q.a : "sell " + s + ", hitting the bid at " + Q.b;
+      };
+      const wrongVerb = net < 0 ? "buy " + k + ", hitting the bid at " + Q.b : "sell " + k + ", lifting the offer at " + Q.a;
+      const math = trades.map((t, i) => (t.buy ? (i ? "+ " : "+") : (i ? "− " : "−")) + t.n).join(" ");
+      return {
+        tag: "Trade sequence",
+        prompt: "The market is " + q(Q.text) + ". Starting flat, you <span class=\"trades\">" + words.join(", ") + "</span>. What's your position, and what trade flattens it?",
+        options: [
+          { t: posName(net) + " — " + fix(net), ok: true },
+          { t: posName(-net) + " — " + fix(-net) },
+          { t: posName(net) + " — " + wrongVerb },
+          { t: posName(net > 0 ? wrongK : -wrongK) + " — " + fix(net, wrongK) }
+        ],
+        explain: math + " = " + (net > 0 ? "+" : "−") + k + ", so you're " + posName(net).toLowerCase() + "; to flatten, " + fix(net) + "."
+      };
+    },
+
+    function spread() {
+      const Q = makeQuote();
+      return {
+        tag: "Spread",
+        prompt: "The market is " + q(Q.text) + ". What's the spread?",
+        text: true,
+        placeholder: "e.g. " + clean(Q.spread + 1),
+        check: (v) => Math.abs(v - Q.spread) < 1e-6,
+        answer: Q.s,
+        explain: "Offer minus bid: " + Q.a + " − " + Q.b + " = " + Q.s + "."
+      };
+    },
+
+    function hedger() {
+      const h = pick([
+        { who: "An airline", act: "buys next quarter's jet fuel from a market maker", risk: "fuel costs" },
+        { who: "A farmer", act: "sells next season's corn to a market maker", risk: "the crop price" },
+        { who: "A power company", act: "buys next winter's natural gas from a market maker", risk: "fuel costs" }
+      ]);
+      return {
+        tag: "Why hedgers pay",
+        prompt: h.who + " " + h.act + ", crossing the spread instead of waiting for a better price. Why pay the spread?",
+        options: [
+          { t: "For immediacy: they want the price locked in now, with certainty", ok: true },
+          { t: "They expect the price to move in their favour" },
+          { t: "Crossing the spread gets them a better price than the mid" },
+          { t: "Market makers only trade with hedgers who pay the spread" }
+        ],
+        explain: "A hedger isn't trying to beat the market. The spread is the fee for removing the risk on " + h.risk + " right now, instead of carrying it while they wait."
+      };
+    },
+
+    // ----- Market maker's seat: you set the bid and offer -----
+
+    function mmTwoWay() {
+      const st = pickStyle();
+      const f = rnd(st.lo + 10, st.hi), e = rnd(1, 4);
+      const p = (t) => (t * st.tick).toFixed(st.dp);
+      const edge = clean(e * st.tick);
+      return {
+        tag: "Market maker · Showing a price",
+        prompt: "You're the market maker. Your fair value is " + q(p(f)) + " and you want to earn " + edge + " on each side. What two-way price do you show?",
+        options: [
+          { t: p(f - e) + " at " + p(f + e), ok: true },
+          { t: p(f + e) + " at " + p(f - e) },
+          { t: p(f) + " at " + p(f + 2 * e) },
+          { t: p(f - 2 * e) + " at " + p(f) }
+        ],
+        explain: "Bid below fair, offer above: " + p(f - e) + " at " + p(f + e) + ". You buy " + edge + " under value and sell " + edge + " over it."
+      };
+    },
+
+    function mmRoundTrip() {
+      const Q = makeQuote();
+      const n = rnd(1, 20);
+      const legs = shuffle(["<b>hits your bid</b> for " + n, "<b>lifts your offer</b> for " + n]);
+      const pnl = Q.spread * n;
+      return {
+        tag: "Market maker · Round trip",
+        prompt: "You're making a market at " + q(Q.text) + ". One client " + legs[0] + ", then another " + legs[1] + ". What's your total profit?",
+        text: true,
+        placeholder: "e.g. " + clean(Q.spread),
+        check: (v) => Math.abs(v - pnl) < 1e-6,
+        answer: clean(pnl),
+        explain: "You bought " + n + " at " + Q.b + " and sold " + n + " at " + Q.a + ", so you're flat and earned the spread: " + Q.s + " × " + n + " = " + clean(pnl) + "."
+      };
+    },
+
+    function mmGotFilled() {
+      const Q = makeQuote();
+      const n = rnd(1, 15);
+      const lifted = Math.random() < 0.5;
+      const half = clean(Q.spread / 2), edge = clean((Q.spread / 2) * n);
+      const opt = (pos, gain) => pos + " " + n + ", " + (gain ? "earned " + edge + " vs the mid" : "lost " + edge + " vs the mid");
+      return {
+        tag: "Market maker · Getting filled",
+        prompt: "You're quoting " + q(Q.text) + ". A client " + (lifted ? "<b>lifts your offer</b>" : "<b>hits your bid</b>") + " for " + n + ". What's your position, and how did you do against the mid (" + Q.mid + ")?",
+        options: [
+          { t: opt(lifted ? "Short" : "Long", true), ok: true },
+          { t: opt(lifted ? "Long" : "Short", true) },
+          { t: opt(lifted ? "Short" : "Long", false) },
+          { t: opt(lifted ? "Long" : "Short", false) }
+        ],
+        explain: lifted
+          ? "The client bought from you, so you're short " + n + ". You sold at " + Q.a + ", " + half + " above the mid: " + half + " × " + n + " = " + edge + " of edge."
+          : "The client sold to you, so you're long " + n + ". You bought at " + Q.b + ", " + half + " below the mid: " + half + " × " + n + " = " + edge + " of edge."
+      };
+    },
+
+    function mmSkew() {
+      const Q = makeQuote();
+      const n = rnd(20, 200);
+      const long = Math.random() < 0.5;
+      const b = Q.bidT, a = Q.bidT + Q.sprT, p = Q.px;
+      const down = p(b - 1) + " at " + p(a - 1), up = p(b + 1) + " at " + p(a + 1);
+      return {
+        tag: "Market maker · Managing inventory",
+        prompt: "You're the market maker quoting " + q(Q.text) + ". After a busy morning you're <b>" + (long ? "long " : "short ") + n + "</b>, more than you want to hold. How do you adjust your quote?",
+        options: [
+          { t: (long ? down : up) + " (shift " + (long ? "down" : "up") + ")", ok: true },
+          { t: (long ? up : down) + " (shift " + (long ? "up" : "down") + ")" },
+          { t: p(b - 1) + " at " + p(a + 1) + " (widen both sides)" },
+          { t: Q.text + " (leave it and wait)" }
+        ],
+        explain: long
+          ? "Long means you want to sell. A lower offer attracts buyers, and a lower bid makes clients less likely to sell you more."
+          : "Short means you want to buy. A higher bid attracts sellers, and a higher offer makes clients less likely to buy more from you."
+      };
+    },
+
+    function mmWidth() {
+      const Q = makeQuote();
+      const s = pick([
+        { t: "A big earnings announcement is due in five minutes.", a: "Widen", why: "Fair value could jump on the news, so you need more cushion against trading at a stale price." },
+        { t: "A client asks for a price in ten times your usual size.", a: "Widen", why: "Bigger size means more risk to hedge or unwind, so you charge more for it." },
+        { t: "You're unsure of fair value; the product barely trades.", a: "Widen", why: "The less sure you are of value, the more edge you need to cover being wrong." },
+        { t: "The market has gone quiet and volatility has dropped.", a: "Tighten", why: "Less risk of the price moving against you means you can quote tighter and win more flow." },
+        { t: "Several competitors are now quoting tighter than you, and you're getting no trades.", a: "Tighten", why: "If your price is never the best, you trade nothing. Tighten to compete for flow." }
+      ]);
+      return {
+        tag: "Market maker · Spread width",
+        prompt: "You're the market maker quoting " + q(Q.text) + ". " + s.t + " What do you do with your spread?",
+        options: [{ t: "Widen", ok: s.a === "Widen" }, { t: "Tighten", ok: s.a === "Tighten" }, { t: "Leave it unchanged" }],
+        fixedOrder: true,
+        explain: s.a + ". " + s.why
+      };
+    },
+
+    // ----- Harder dynamics -----
+
+    function insideMarket() {
+      for (let tries = 0; tries < 200; tries++) {
+        const st = pickStyle();
+        const p = (t) => (t * st.tick).toFixed(st.dp);
+        const base = rnd(st.lo + 10, st.hi);
+        const qs = [0, 1, 2].map(() => { const b = base + rnd(-3, 1); return { b: b, a: b + rnd(2, 5) }; });
+        const bb = Math.max.apply(null, qs.map((x) => x.b)), bo = Math.min.apply(null, qs.map((x) => x.a));
+        if (bb >= bo) continue;
+        const wb = Math.min.apply(null, qs.map((x) => x.b)), wa = Math.max.apply(null, qs.map((x) => x.a));
+        const qBB = qs.find((x) => x.b === bb), qBO = qs.find((x) => x.a === bo);
+        const cand = [
+          { t: p(bb) + " at " + p(bo), ok: true },
+          { t: p(wb) + " at " + p(wa) },
+          { t: p(bb) + " at " + p(qBB.a) },
+          { t: p(qBO.b) + " at " + p(bo) },
+          { t: p(wb) + " at " + p(bo) },
+          { t: p(bb) + " at " + p(wa) }
+        ];
+        const seen = new Set(), opts = [];
+        cand.forEach((c) => { if (!seen.has(c.t)) { seen.add(c.t); opts.push(c); } });
+        if (opts.length < 4) continue;
+        const names = ["Trader A", "Trader B", "Trader C"];
+        return {
+          tag: "Best bid and offer",
+          prompt: qs.map((x, i) => names[i] + " quotes " + q(p(x.b) + " at " + p(x.a))).join(". ") + ". What's the best market you can trade on right now?",
+          options: opts.slice(0, 4),
+          explain: "The best bid is the highest anyone will pay (" + p(bb) + "), and the best offer is the lowest anyone will sell at (" + p(bo) + "). They can come from different traders. As a taker you'd sell at " + p(bb) + " and buy at " + p(bo) + "."
+        };
+      }
+      return templates[0]();
+    },
+
+    function crossedMarket() {
+      const st = pickStyle();
+      const p = (t) => (t * st.tick).toFixed(st.dp);
+      const base = rnd(st.lo + 10, st.hi);
+      const sA = rnd(1, 3), g = rnd(1, 3), sB = rnd(1, 3);
+      const cheap = { b: base, a: base + sA }, rich = { b: base + sA + g, a: base + sA + g + sB };
+      const swap = Math.random() < 0.5;
+      const nc = swap ? "Trader B" : "Trader A", nr = swap ? "Trader A" : "Trader B";
+      const lineC = nc + " quotes " + q(p(cheap.b) + " at " + p(cheap.a));
+      const lineR = nr + " quotes " + q(p(rich.b) + " at " + p(rich.a));
+      const edge = clean(g * st.tick);
+      return {
+        tag: "Crossed market",
+        prompt: (swap ? lineR + ". " + lineC : lineC + ". " + lineR) + ". What do you do?",
+        options: [
+          { t: "Lift " + nc + "'s offer at " + p(cheap.a) + " and hit " + nr + "'s bid at " + p(rich.b), ok: true },
+          { t: "Hit " + nc + "'s bid at " + p(cheap.b) + " and lift " + nr + "'s offer at " + p(rich.a) },
+          { t: "Lift both offers and wait for the prices to converge" },
+          { t: "Nothing: traders always disagree a little" }
+        ],
+        explain: nr + "'s bid (" + p(rich.b) + ") is above " + nc + "'s offer (" + p(cheap.a) + "), so the market is crossed. Buy from " + nc + " and sell to " + nr + " at the same time: you end flat and lock in " + edge + " per unit."
+      };
+    },
+
+    function makerTakerMix() {
+      const Q = makeQuote();
+      let n1, n2;
+      do { n1 = rnd(1, 12); n2 = rnd(1, 12); } while (n1 === n2);
+      const clientLifts = Math.random() < 0.5;   // client lifts your offer -> you sell
+      const youLift = Math.random() < 0.5;       // you lift another trader's offer -> you buy
+      const s1 = clientLifts ? -1 : 1, s2 = youLift ? 1 : -1;
+      const net = s1 * n1 + s2 * n2;
+      const name = (x) => (x > 0 ? "Long " : "Short ") + Math.abs(x);
+      const combos = [[1, 1], [1, -1], [-1, 1], [-1, -1]].map((c) => c[0] * n1 + c[1] * n2);
+      return {
+        tag: "Maker or taker?",
+        prompt: "You're quoting " + q(Q.text) + ". A client <b>" + (clientLifts ? "lifts your offer" : "hits your bid") + "</b> for " + n1 +
+          ". Then you <b>" + (youLift ? "lift another trader's offer" : "hit another trader's bid") + "</b> for " + n2 + ". What's your position?",
+        options: combos.map((x) => ({ t: name(x), ok: x === net })),
+        explain: "On your quote you're the maker: the client " + (clientLifts ? "bought from you, so −" : "sold to you, so +") + n1 +
+          ". On their quote you're the taker: you " + (youLift ? "bought, so +" : "sold, so −") + n2 + ". Net " + (net > 0 ? "+" : "−") + Math.abs(net) + ": " + name(net).toLowerCase() + "."
+      };
+    },
+
+    function realizedPnl() {
+      const base = rnd(20, 150);
+      const legs = Array.from({ length: rnd(2, 3) }, () => ({ n: rnd(1, 6), p: base + rnd(-4, 4) }));
+      const total = legs.reduce((s, l) => s + l.n, 0);
+      const exit = base + rnd(-5, 6);
+      const long = Math.random() < 0.5;
+      const pnl = legs.reduce((s, l) => s + l.n * (long ? exit - l.p : l.p - exit), 0);
+      const words = legs.map((l, i) => (i ? "then " : "") + (long ? "buy " : "sell ") + l.n + " at " + l.p).join(", ");
+      const math = legs.map((l) => l.n + " × (" + (long ? exit + " − " + l.p : l.p + " − " + exit) + ")").join(" + ");
+      return {
+        tag: "P&L · Several fills",
+        prompt: "Starting flat, you <span class=\"trades\">" + words + "</span>. Then you " + (long ? "sell" : "buy back") + " all " + total + " at " + exit + ". What's your total P&amp;L? (Use a minus sign for a loss.)",
+        text: true,
+        placeholder: "e.g. 12 or -8",
+        check: (v) => Math.abs(v - pnl) < 1e-6,
+        answer: String(pnl),
+        explain: (long ? "Each lot earns the exit price minus what you paid: " : "Each lot earns what you sold at minus the buy-back price: ") + math + " = " + pnl + "."
+      };
+    },
+
+    function markToExit() {
+      const Q = makeQuote();
+      const n = rnd(2, 12);
+      const long = Math.random() < 0.5;
+      const entryT = Q.bidT + rnd(-4, Q.sprT + 4);
+      const askT = Q.bidT + Q.sprT;
+      const pnlT = long ? Q.bidT - entryT : entryT - askT;
+      const pnl = pnlT * n * Q.style.tick;
+      const exitPx = long ? Q.b : Q.a;
+      return {
+        tag: "P&L · Exit price",
+        prompt: "You're <b>" + (long ? "long " : "short ") + n + "</b>, " + (long ? "bought" : "sold") + " at " + Q.px(entryT) + ". The market is now " + q(Q.text) + ". If you flatten right now, what's your P&amp;L? (Minus sign for a loss.)",
+        text: true,
+        placeholder: "e.g. 6 or -4",
+        check: (v) => Math.abs(v - pnl) < 1e-6,
+        answer: clean(pnl),
+        explain: "To flatten a " + (long ? "long you sell, and selling now means hitting the bid" : "short you buy, and buying now means lifting the offer") + " at " + exitPx + ", not the mid. " +
+          (long ? "(" + exitPx + " − " + Q.px(entryT) + ")" : "(" + Q.px(entryT) + " − " + exitPx + ")") + " × " + n + " = " + clean(pnl) + "."
+      };
+    },
+
+    function adverseSelection() {
+      const Q = makeQuote();
+      const k = rnd(8, 25);
+      const lifted = Math.random() < 0.5;
+      return {
+        tag: "Adverse selection",
+        prompt: "You're quoting " + q(Q.text) + ". The same trader keeps " + (lifted ? "<b>lifting your offer</b>" : "<b>hitting your bid</b>") +
+          ", even after you moved your price twice. You're now " + (lifted ? "short " : "long ") + k + ". What's the best read?",
+        options: [
+          { t: "They probably know fair value is " + (lifted ? "higher" : "lower") + ". Move your whole quote " + (lifted ? "up" : "down") + " and widen until the flow stops", ok: true },
+          { t: "Great flow. Keep your quote and collect the spread every time" },
+          { t: "Move your quote " + (lifted ? "down" : "up") + " so you trade with them even more" },
+          { t: "Only move your " + (lifted ? "bid up" : "offer down") + " and leave the other side where it is" }
+        ],
+        explain: "One-sided flow from the same counterparty is information. You earn a small edge per trade but lose far more if they're right about value. Reprice in their direction and widen: this is adverse selection, the main risk a market maker manages."
+      };
+    },
+
+    function endGameFlat() {
+      const Q = makeQuote();
+      const n = rnd(2, 9);
+      const long = Math.random() < 0.5;
+      return {
+        tag: "Pit game · Final seconds",
+        prompt: "Pit game, 15 seconds left, and you must finish <b>flat</b>. You're <b>" + (long ? "long " : "short ") + n + "</b> and the pit is " + q(Q.text) + ". What do you do?",
+        options: long
+          ? [
+              { t: "Hit the bid at " + Q.b + " for " + n + " now, even though it costs a little", ok: true },
+              { t: "Offer at " + Q.a + " and hope someone lifts you before the bell" },
+              { t: "Do nothing: " + n + " lots is close enough to flat" },
+              { t: "Lift the offer at " + Q.a + " for " + n }
+            ]
+          : [
+              { t: "Lift the offer at " + Q.a + " for " + n + " now, even though it costs a little", ok: true },
+              { t: "Bid at " + Q.b + " and hope someone hits you before the bell" },
+              { t: "Do nothing: " + n + " lots is close enough to flat" },
+              { t: "Hit the bid at " + Q.b + " for " + n }
+            ],
+        explain: (long ? "Long " + n + " means you must sell " + n + ". " : "Short " + n + " means you must buy " + n + ". ") +
+          "Finishing flat is the rule, so certainty beats price. Crossing the spread costs a little; missing flat costs the game. It's the same immediacy a hedger pays for."
+      };
+    },
+
+    function cardFairValue() {
+      const N = rnd(4, 10);
+      const variant = rnd(0, 2);
+      const deck = "one 52-card deck (A=1, J=11, Q=12, K=13)";
+      const cn = (v) => ({ 1: "A (1)", 11: "J (11)", 12: "Q (12)", 13: "K (13)" })[v] || String(v);
+      if (variant === 0) {
+        const fv = 7 * N;
+        return {
+          tag: "Pit game · Fair value",
+          prompt: "A contract settles at the sum of " + N + " cards dealt face-down from " + deck + ". You've seen none of them. What's fair value?",
+          text: true,
+          placeholder: "e.g. 35",
+          check: (v) => Math.abs(v - fv) < 1e-6,
+          answer: String(fv),
+          explain: "Each card averages (1 + 13) ÷ 2 = 7, so " + N + " cards average 7 × " + N + " = " + fv + "."
+        };
+      }
+      const seen = variant === 1 ? [rnd(1, 13)] : [rnd(1, 13), rnd(1, 13)];
+      const m = seen.length, S = seen[0] + (seen[1] || 0);
+      const per = (364 - S) / (52 - m);
+      const fv = S + (N - m) * per;
+      return {
+        tag: "Pit game · Fair value",
+        prompt: "A contract settles at the sum of " + N + " cards dealt from " + deck + ". You can see " +
+          (m === 1 ? "one of them: " + cn(seen[0]) : "two of them: " + cn(seen[0]) + " and " + cn(seen[1])) +
+          ". What's fair value? (One decimal place is fine.)",
+        text: true,
+        placeholder: "e.g. 42.5",
+        check: (v) => Math.abs(v - fv) < 0.15,
+        answer: fv.toFixed(1),
+        explain: "The whole deck sums to 364. Each unseen card averages (364 − " + S + ") ÷ " + (52 - m) + " ≈ " + per.toFixed(2) + ". So " + S + " + " + (N - m) + " × " + per.toFixed(2) +
+          " ≈ " + fv.toFixed(1) + ". Quick sanity check: seen cards plus 7 per unseen card gives " + (S + 7 * (N - m)) + "."
+      };
+    }
+  ];
+
+  // Base mix before adaptation: fewer basics, more tricky dynamics.
+  const WEIGHTS = {
+    readQuote: 1.2, aggressorVerbs: 1, flattenPosition: 1, tradeSequence: 1, spread: 0.4, hedger: 0.2,
+    mmTwoWay: 0.8, mmRoundTrip: 0.8, mmGotFilled: 1, mmSkew: 1.2, mmWidth: 1,
+    insideMarket: 1.4, crossedMarket: 1.4, makerTakerMix: 2, realizedPnl: 1.5, markToExit: 1.5,
+    adverseSelection: 1.4, endGameFlat: 1.2, cardFairValue: 1.6
+  };
+
+  // One entry per question type. Every template's tag is fixed, so one sample gives its label.
+  const TYPES = templates.map((f) => ({
+    id: f.name,
+    base: WEIGHTS[f.name] || 1,
+    label: f().tag,
+    generate: f
+  }));
+  const byId = {};
+  TYPES.forEach((t) => { byId[t.id] = t; });
+
+  /** Build a question of the given type, with options shuffled unless order matters. */
+  function generate(id) {
+    const qn = byId[id].generate();
+    qn.type = id;
+    if (!qn.text && !qn.fixedOrder) qn.options = shuffle(qn.options);
+    return qn;
+  }
+
+  return { TYPES, WEIGHTS, generate, evalAnswer };
+});
+</script>
+<script>
+/*
+ * Adaptive question picker.
+ *
+ * Tracks how often each question type is missed and asks the weak types more.
+ *
+ * For each type we keep an exponentially decayed count of attempts and misses,
+ * so recent answers matter more than old ones and a type you've since fixed
+ * cools off again. The estimated miss rate is smoothed with a prior so a
+ * single answer doesn't swing it to 0% or 100%:
+ *
+ *   missRate = (decayedMisses + PRIOR_MISSES) / (decayedAttempts + PRIOR_ATTEMPTS)
+ *
+ * Each type's selection weight is then
+ *
+ *   weight = baseWeight × (FLOOR + GAIN × missRate) × staleness
+ *
+ * - baseWeight is the hand-tuned mix (fewer basics, more tricky dynamics).
+ * - FLOOR keeps mastered types in rotation so they don't vanish entirely.
+ * - staleness gently brings back types you already know but haven't seen for a
+ *   while (spaced review). It never applies to weak or unseen types, so it
+ *   can't dilute the push toward what you're missing.
+ *
+ * Finally no single type may take more than MAX_SHARE of the probability, so a
+ * bad streak on one type can't turn the drill into a single-question loop.
+ */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else root.AdaptiveModel = api;
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  const DEFAULTS = {
+    decay: 0.85,          // weight kept by older answers each time the type is answered again
+    priorMisses: 0.3,     // prior: a type you've never seen is assumed 30% missed,
+    priorAttempts: 1,     //   worth one answer of evidence
+    floor: 0.1,
+    gain: 4,
+    staleAfter: 60,       // questions without seeing a known type before the full staleness boost
+    staleBoost: 0.3,      // up to +30%
+    maxShare: 0.3,
+    focusThreshold: 0.45  // miss rate at which a type is flagged as a focus area
+  };
+
+  function normalize(ws) {
+    const sum = ws.reduce((s, w) => s + w, 0);
+    return sum > 0 ? ws.map((w) => w / sum) : ws.map(() => 1 / ws.length);
+  }
+
+  // Clip any share above `cap` and hand the excess to the others in proportion.
+  function capShares(p, cap) {
+    if (!(cap > 0) || cap * p.length < 1) return p;
+    p = p.slice();
+    for (let iter = 0; iter < 20; iter++) {
+      let excess = 0, freeMass = 0;
+      p.forEach((x) => { if (x > cap) excess += x - cap; else freeMass += x; });
+      if (excess < 1e-12) break;
+      p = p.map((x) => (x > cap ? cap : x + (freeMass > 0 ? (excess * x) / freeMass : 0)));
+    }
+    return p;
+  }
+
+  class AdaptiveModel {
+    /**
+     * @param {{id: string, base?: number}[]} types
+     * @param {object} [opts] overrides for DEFAULTS
+     */
+    constructor(types, opts) {
+      this.opts = Object.assign({}, DEFAULTS, opts || {});
+      this.ids = types.map((t) => t.id);
+      this.base = {};
+      types.forEach((t) => { this.base[t.id] = t.base > 0 ? t.base : 1; });
+      this.clock = 0;
+      this.stats = {};
+      this.ids.forEach((id) => { this.stats[id] = AdaptiveModel.emptyStat(); });
+    }
+
+    static emptyStat() {
+      return { n: 0, miss: 0, total: 0, totalMiss: 0, lastSeen: null };
+    }
+
+    /** Record one answered question. Unknown ids are ignored. */
+    record(id, ok) {
+      const s = this.stats[id];
+      if (!s) return;
+      const d = this.opts.decay;
+      s.n = s.n * d + 1;
+      s.miss = s.miss * d + (ok ? 0 : 1);
+      s.total += 1;
+      if (!ok) s.totalMiss += 1;
+      this.clock += 1;
+      s.lastSeen = this.clock;
+    }
+
+    /** Smoothed, recency-weighted miss rate in [0, 1]. */
+    missRate(id) {
+      const s = this.stats[id];
+      if (!s) return 0;
+      const o = this.opts;
+      return (s.miss + o.priorMisses) / (s.n + o.priorAttempts);
+    }
+
+    staleness(id) {
+      const s = this.stats[id];
+      if (!s || s.lastSeen === null || this.missRate(id) >= this.opts.focusThreshold) return 1;
+      const since = this.clock - s.lastSeen;
+      return 1 + this.opts.staleBoost * Math.min(1, since / this.opts.staleAfter);
+    }
+
+    weight(id) {
+      const o = this.opts;
+      return this.base[id] * (o.floor + o.gain * this.missRate(id)) * this.staleness(id);
+    }
+
+    /** True once a type has enough evidence and a high miss rate. */
+    isFocus(id) {
+      const s = this.stats[id];
+      return !!s && s.total >= 2 && this.missRate(id) >= this.opts.focusThreshold;
+    }
+
+    /**
+     * Probability of asking each type next.
+     * @param {string|null} exclude  a type to skip (e.g. the one just asked)
+     * @param {boolean} [adaptive=true]  false = the plain base mix
+     * @returns {Object<string, number>}
+     */
+    probabilities(exclude, adaptive) {
+      const ids = this.ids.filter((id) => id !== exclude);
+      const useAdaptive = adaptive !== false;
+      let p = normalize(ids.map((id) => (useAdaptive ? this.weight(id) : this.base[id])));
+      if (useAdaptive) p = capShares(p, this.opts.maxShare);
+      const out = {};
+      ids.forEach((id, i) => { out[id] = p[i]; });
+      return out;
+    }
+
+    /** Draw the next type. `rand` returns a number in [0, 1). */
+    pick(rand, exclude, adaptive) {
+      const probs = this.probabilities(exclude, adaptive);
+      const ids = Object.keys(probs);
+      let r = (rand || Math.random)();
+      for (const id of ids) { r -= probs[id]; if (r < 0) return id; }
+      return ids[ids.length - 1];
+    }
+
+    /** Rows for display, weakest first. */
+    summary(exclude, adaptive) {
+      const probs = this.probabilities(exclude, adaptive);
+      return this.ids.map((id) => {
+        const s = this.stats[id];
+        return {
+          id,
+          total: s.total,
+          missed: s.totalMiss,
+          missRate: this.missRate(id),
+          focus: this.isFocus(id),
+          askRate: probs[id] || 0
+        };
+      }).sort((a, b) => (b.total > 0) - (a.total > 0) || b.missRate - a.missRate || b.askRate - a.askRate);
+    }
+
+    reset() {
+      this.clock = 0;
+      this.ids.forEach((id) => { this.stats[id] = AdaptiveModel.emptyStat(); });
+    }
+
+    toJSON() {
+      return { version: 1, clock: this.clock, stats: this.stats };
+    }
+
+    /** Restore saved stats; tolerant of missing, extra or malformed entries. */
+    load(data) {
+      if (!data || typeof data !== "object" || !data.stats) return false;
+      this.reset();
+      this.clock = Number(data.clock) || 0;
+      this.ids.forEach((id) => {
+        const s = data.stats[id];
+        if (!s) return;
+        const num = (v) => (typeof v === "number" && isFinite(v) && v >= 0 ? v : 0);
+        this.stats[id] = {
+          n: num(s.n), miss: Math.min(num(s.miss), num(s.n)),
+          total: num(s.total), totalMiss: Math.min(num(s.totalMiss), num(s.total)),
+          lastSeen: typeof s.lastSeen === "number" ? s.lastSeen : null
+        };
+      });
+      return true;
+    }
+
+    /**
+     * Rebuild stats by replaying saved question logs (oldest first).
+     * @param {{type?: string, tag?: string, ok: boolean}[]} entries
+     * @param {Object<string, string>} tagToId  maps older log entries (tag only) to a type id
+     */
+    replay(entries, tagToId) {
+      entries.forEach((e) => {
+        const id = e.type || (tagToId && tagToId[e.tag]);
+        if (id) this.record(id, !!e.ok);
+      });
+    }
+  }
+
+  AdaptiveModel.DEFAULTS = DEFAULTS;
+  AdaptiveModel.capShares = capShares;
+  return AdaptiveModel;
+});
+</script>
+<script>
+/* UI: question flow, scoring, session history, question log and the focus-areas panel. */
+(function () {
+  "use strict";
+
+  const { TYPES, generate, evalAnswer } = window.DrillQuestions;
+  const AdaptiveModel = window.AdaptiveModel;
+
+  const labelOf = {};
+  const tagToId = {};
+  TYPES.forEach((t) => { labelOf[t.id] = t.label; tagToId[t.label] = t.id; });
+
+  // ---------- persistence ----------
+  const KEY = "tradingDrill.sessions.v1";
+  const MODEL_KEY = "tradingDrill.model.v1";
+  const PREFS_KEY = "tradingDrill.prefs.v1";
+  const LOG_SESSIONS = 30;   // keep full question logs for the most recent sessions
+  const LOG_MAX = 500;       // cap per session
+
+  function readJSON(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function writeJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+  }
+
+  function loadSessions() { const v = readJSON(KEY, []); return Array.isArray(v) ? v : []; }
+  function saveSessions(list) {
+    const trimmed = list.slice(-100).map((s, i, arr) => {
+      if (i < arr.length - LOG_SESSIONS && s.log) { const c = Object.assign({}, s); delete c.log; return c; }
+      return s;
+    });
+    writeJSON(KEY, trimmed);
+  }
+
+  let sessions = loadSessions();
+  let current = null;
+  function newSession() { current = { id: Date.now(), date: new Date().toISOString(), correct: 0, total: 0, log: [] }; streak = 0; }
+  function persistCurrent() {
+    if (!current || current.total === 0) return;
+    const i = sessions.findIndex((s) => s.id === current.id);
+    if (i >= 0) sessions[i] = Object.assign({}, current); else sessions.push(Object.assign({}, current));
+    saveSessions(sessions);
+  }
+
+  // ---------- adaptive model ----------
+  const model = new AdaptiveModel(TYPES.map((t) => ({ id: t.id, base: t.base })));
+  if (!model.load(readJSON(MODEL_KEY, null))) {
+    // First run with the model: learn from any question logs already saved.
+    sessions.slice().sort((a, b) => a.id - b.id).forEach((s) => model.replay(s.log || [], tagToId));
+    writeJSON(MODEL_KEY, model.toJSON());
+  }
+  const prefs = Object.assign({ adaptive: true }, readJSON(PREFS_KEY, {}));
+
+  // ---------- rendering ----------
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const pct = (x) => Math.round(100 * x) + "%";
+  let streak = 0;
+  let lastType = null;
+  let state = null;      // { q, answered }
+  let viewId = null;     // null = current session's log; otherwise a past session id
+  let reviewIdx = null;  // index of the logged question being reviewed
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + ", " +
+      d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderHistory() {
+    const rows = sessions.slice().reverse();
+    if (!rows.length) {
+      $("history").innerHTML = '<p class="empty">No sessions yet. Answer a question and it will be saved here.</p>';
+      $("clear-slot").hidden = true;
+      return;
+    }
+    $("clear-slot").hidden = false;
+    $("history").innerHTML =
+      '<div class="table-scroll"><table><thead><tr><th>Date</th><th class="r">Score</th><th class="r">Accuracy</th></tr></thead><tbody>' +
+      rows.map((s) => {
+        const cur = current && s.id === current.id;
+        const viewing = viewId !== null && s.id === viewId;
+        return '<tr data-id="' + s.id + '" class="' + (cur ? "current" : "") + (viewing ? " viewing" : "") + '" title="Show this session\'s questions"><td>' + fmtDate(s.date) + (cur ? " · now" : "") +
+          '</td><td class="r">' + s.correct + " / " + s.total +
+          '</td><td class="r">' + Math.round((100 * s.correct) / s.total) + "%</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  function renderScore() {
+    $("s-score").textContent = current.correct + " / " + current.total;
+    $("s-acc").textContent = current.total ? pct(current.correct / current.total) : "—";
+    $("s-streak").textContent = streak;
+  }
+
+  // ---------- focus areas ----------
+  function renderFocus() {
+    const rows = model.summary(lastType, prefs.adaptive);
+    const weak = rows.filter((r) => r.focus);
+    const answered = rows.some((r) => r.total > 0);
+    let text;
+    if (!answered) text = "Answer a few questions and your weak spots show up here.";
+    else if (!weak.length) text = "No weak spots right now: you aren't regularly missing any question type.";
+    else {
+      text = "Weakest: " + weak.slice(0, 3).map((r) => "<b>" + esc(labelOf[r.id]) + "</b>").join(", ") +
+        (prefs.adaptive ? ". These come up more often until you're getting them right." : ". Turn on the switch to practise them more.");
+    }
+    $("focus-summary").innerHTML = text;
+
+    $("focus-table").innerHTML =
+      '<div class="table-scroll"><table><thead><tr><th>Type</th><th class="r">Missed</th><th class="r">Recent</th><th class="r">Next</th></tr></thead><tbody>' +
+      rows.map((r) => '<tr class="' + (r.focus ? "is-focus" : "") + '"><td class="type">' + esc(labelOf[r.id]) + "</td>" +
+        '<td class="r">' + (r.total ? r.missed + " / " + r.total : "—") + "</td>" +
+        '<td class="r">' + (r.total ? pct(r.missRate) : "—") + "</td>" +
+        '<td class="r"><span class="bar"><i style="width:' + Math.min(100, Math.round(r.askRate * 300)) + '%"></i></span>' + pct(r.askRate) + "</td></tr>"
+      ).join("") + "</tbody></table></div>" +
+      '<p class="focus-key">Missed: all-time misses / attempts. Recent: miss rate weighted toward your latest answers. ' +
+      "Next: chance this type is the next question" + (prefs.adaptive ? "." : " (fixed mix while the switch is off).") + "</p>";
+  }
+
+  // ---------- question log ----------
+  function viewedSession() {
+    if (viewId === null) return current;
+    return sessions.find((s) => s.id === viewId) || current;
+  }
+  function viewedLog() { const s = viewedSession(); return (s && s.log) || []; }
+
+  function renderLog() {
+    const s = viewedSession();
+    const log = viewedLog();
+    const isCurrent = s === current;
+    if (reviewIdx !== null && !log[reviewIdx]) reviewIdx = null;
+
+    let meta = (isCurrent ? "This session" : fmtDate(s.date)) + " · " + log.length + " answered";
+    if (!isCurrent) meta += ' <button class="linkbtn" id="log-back" type="button">Back to this session</button>';
+    $("log-meta").innerHTML = meta;
+
+    if (!log.length) {
+      $("log-chips").innerHTML = '<p class="empty">' + (isCurrent
+        ? "Answered questions appear here. Tap a number to review it."
+        : "No question log for this session (it was played before logging was added).") + "</p>";
+    } else {
+      $("log-chips").innerHTML = log.map((e, i) =>
+        '<button class="chip ' + (e.ok ? "ok" : "bad") + (i === reviewIdx ? " sel" : "") + '" type="button" data-i="' + i +
+        '" aria-label="Question ' + (i + 1) + ", " + (e.ok ? "correct" : "incorrect") + '">' + (i + 1) + "</button>").join("");
+    }
+    renderReview();
+  }
+
+  function renderReview() {
+    const box = $("review");
+    const log = viewedLog();
+    const e = reviewIdx === null ? null : log[reviewIdx];
+    if (!e) { box.hidden = true; box.innerHTML = ""; return; }
+
+    let h = '<div class="review-head"><span class="label">Question ' + (reviewIdx + 1) + " / " + log.length + " · " + e.tag +
+      '</span><button class="linkbtn" data-act="close" type="button">Close</button></div>' +
+      '<p class="prompt">' + e.prompt + "</p>";
+    if (e.text) {
+      h += '<p class="typed">Your answer: <b class="num">' + esc(e.typed) + "</b>" +
+        (e.ok ? "" : " · Correct answer: <b class=\"num\">" + esc(e.answer) + "</b>") + "</p>";
+    } else {
+      h += '<div class="options">' + e.options.map((o, k) => {
+        const cls = o.ok ? "is-correct" : (k === e.chosen ? "is-wrong" : "dim");
+        return '<div class="opt ' + cls + '"><kbd>' + (k + 1) + "</kbd><span>" + o.t +
+          (k === e.chosen ? '<em class="pick">your pick</em>' : "") + "</span></div>";
+      }).join("") + "</div>";
+    }
+    h += '<div class="feedback ' + (e.ok ? "good" : "bad") + '"><span class="verdict">' + (e.ok ? "Correct" : "Incorrect") +
+      '</span><p class="explain">' + e.explain + "</p></div>" +
+      '<div class="next-row"><button class="btn ghost" data-act="prev" type="button"' + (reviewIdx === 0 ? " disabled" : "") + ">← Previous</button>" +
+      '<span class="keys">← → to move, Esc to close</span>' +
+      '<button class="btn ghost" data-act="next" type="button"' + (reviewIdx === log.length - 1 ? " disabled" : "") + ">Next</button></div>";
+    box.innerHTML = h;
+    box.hidden = false;
+  }
+
+  function openReview(i) {
+    reviewIdx = i;
+    renderLog();
+    if (reviewIdx !== null) $("review").scrollIntoView({ block: "nearest" });
+  }
+
+  // ---------- question flow ----------
+  function nextQuestion() {
+    const id = model.pick(Math.random, lastType, prefs.adaptive);
+    lastType = id;
+    state = { q: generate(id), answered: false };
+    renderQuestion();
+    renderFocus();
+  }
+
+  function renderQuestion() {
+    const qn = state.q;
+    const focus = prefs.adaptive && model.isFocus(qn.type);
+    let body = '<span class="label">' + qn.tag + (focus ? ' <span class="focus-tag">· Focus area</span>' : "") +
+      '</span><p class="prompt">' + qn.prompt + "</p>";
+    if (qn.text) {
+      body += '<form class="textrow" id="text-form" autocomplete="off">' +
+        '<input id="text-answer" inputmode="decimal" placeholder="' + qn.placeholder + '" aria-label="Your answer">' +
+        '<button class="btn" type="submit">Check</button></form>' +
+        '<p class="hint" id="text-hint">Type a number (or a sum like 88.5 − 87.5) and press Enter.</p>';
+    } else {
+      body += '<div class="options" role="group" aria-label="Answers">' +
+        qn.options.map((o, k) => '<button class="opt" type="button" data-k="' + k + '"><kbd>' + (k + 1) + "</kbd><span>" + o.t + "</span></button>").join("") +
+        "</div>";
+    }
+    body += '<div id="feedback-slot"></div>';
+    $("card").innerHTML = body;
+
+    if (qn.text) {
+      const input = $("text-answer");
+      $("text-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (state.answered) return;
+        const v = evalAnswer(input.value);
+        if (isNaN(v)) {
+          const hint = $("text-hint");
+          hint.textContent = input.value.trim() === ""
+            ? "Type your answer first."
+            : "Couldn't read “" + input.value.trim() + "”. Enter a number like 1.5 (sums like 88.5 − 87.5 work too).";
+          hint.classList.add("err");
+          input.focus();
+          return;
+        }
+        input.disabled = true;
+        e.target.querySelector("button").disabled = true;
+        answer(qn.check(v), { typed: input.value.trim() });
+      });
+      input.focus({ preventScroll: true });
+    } else {
+      $("card").querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => choose(Number(b.dataset.k))));
+    }
+  }
+
+  function choose(k) {
+    if (state.answered) return;
+    const qn = state.q;
+    const ok = !!qn.options[k].ok;
+    $("card").querySelectorAll(".opt").forEach((b, idx) => {
+      b.disabled = true;
+      if (qn.options[idx].ok) b.classList.add("is-correct");
+      else if (idx === k) b.classList.add("is-wrong");
+      else b.classList.add("dim");
+    });
+    answer(ok, { chosen: k });
+  }
+
+  function answer(ok, detail) {
+    const qn = state.q;
+    detail = detail || {};
+    state.answered = true;
+    current.total++;
+    if (ok) { current.correct++; streak++; } else { streak = 0; }
+    if (!current.log) current.log = [];
+    if (current.log.length < LOG_MAX) {
+      current.log.push({
+        type: qn.type,
+        tag: qn.tag,
+        prompt: qn.prompt,
+        text: !!qn.text,
+        options: qn.text ? null : qn.options.map((o) => ({ t: o.t, ok: !!o.ok })),
+        chosen: typeof detail.chosen === "number" ? detail.chosen : null,
+        typed: detail.typed != null ? detail.typed : null,
+        answer: qn.answer != null ? String(qn.answer) : null,
+        ok: !!ok,
+        explain: qn.explain
+      });
+    }
+    model.record(qn.type, ok);
+    writeJSON(MODEL_KEY, model.toJSON());
+    persistCurrent();
+    renderScore();
+    renderHistory();
+    renderFocus();
+    if (viewId === null) renderLog();
+
+    let note = "";
+    if (prefs.adaptive && !ok) note = '<p class="adapt-note">You\'ll see more “' + esc(labelOf[qn.type]) + "” questions until you're getting them right.</p>";
+    const verdict = ok ? "Correct" : "Incorrect" + (qn.text ? ": it's " + qn.answer : "");
+    $("feedback-slot").innerHTML =
+      '<div class="feedback ' + (ok ? "good" : "bad") + '" role="status"><span class="verdict">' + verdict +
+      '</span><p class="explain">' + qn.explain + "</p>" + note + "</div>" +
+      '<div class="next-row" style="margin-top:16px"><span class="keys">Enter for next</span>' +
+      '<button class="btn" id="next-btn" type="button">Next question →</button></div>';
+    const nb = $("next-btn");
+    nb.addEventListener("click", nextQuestion);
+    nb.focus({ preventScroll: true });
+  }
+
+  // ---------- events ----------
+  // Keyboard: 1–4 to answer, Enter for next. While reviewing: ← → to move, Esc to close.
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const ae = document.activeElement;
+    const typing = ae && ae.tagName === "INPUT" && ae.type !== "checkbox";
+    if (reviewIdx !== null && !typing) {
+      const n = viewedLog().length;
+      if (e.key === "Escape") { e.preventDefault(); reviewIdx = null; renderLog(); return; }
+      if (e.key === "ArrowLeft" && reviewIdx > 0) { e.preventDefault(); openReview(reviewIdx - 1); return; }
+      if (e.key === "ArrowRight" && reviewIdx < n - 1) { e.preventDefault(); openReview(reviewIdx + 1); return; }
+    }
+    if (!state) return;
+    if (ae && ae.closest && ae.closest(".log, .history, .focus")) return;   // let panel controls handle their own keys
+    if (state.answered && e.key === "Enter" && ae && ae.id !== "next-btn") {
+      e.preventDefault(); nextQuestion(); return;
+    }
+    if (!state.answered && !state.q.text) {
+      const n = Number(e.key);
+      if (n >= 1 && n <= state.q.options.length) choose(n - 1);
+    }
+  });
+
+  $("adaptive-toggle").checked = prefs.adaptive;
+  $("adaptive-toggle").addEventListener("change", (e) => {
+    prefs.adaptive = e.target.checked;
+    writeJSON(PREFS_KEY, prefs);
+    renderFocus();
+  });
+
+  $("log-chips").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (!b) return;
+    const i = Number(b.dataset.i);
+    openReview(reviewIdx === i ? null : i);
+  });
+
+  $("log-meta").addEventListener("click", (e) => {
+    if (e.target.id !== "log-back") return;
+    viewId = null; reviewIdx = null;
+    renderHistory(); renderLog();
+  });
+
+  $("review").addEventListener("click", (e) => {
+    const a = e.target.closest("[data-act]");
+    if (!a || a.disabled) return;
+    const act = a.dataset.act;
+    if (act === "close") { reviewIdx = null; renderLog(); }
+    else if (act === "prev" && reviewIdx > 0) openReview(reviewIdx - 1);
+    else if (act === "next" && reviewIdx < viewedLog().length - 1) openReview(reviewIdx + 1);
+  });
+
+  $("history").addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-id]");
+    if (!tr) return;
+    const id = Number(tr.dataset.id);
+    viewId = current && id === current.id ? null : id;
+    reviewIdx = null;
+    renderHistory(); renderLog();
+  });
+
+  $("new-session").addEventListener("click", () => {
+    persistCurrent();
+    newSession();
+    viewId = null; reviewIdx = null;
+    renderScore(); renderHistory(); renderLog(); nextQuestion();
+  });
+
+  // In-page confirm for clearing history (no native dialogs). Clearing also resets the model.
+  $("clear-slot").addEventListener("click", (e) => {
+    const t = e.target;
+    if (t.id === "clear-btn") {
+      $("clear-slot").innerHTML = '<span class="confirm">Delete all saved sessions and focus areas? ' +
+        '<button class="linkbtn" id="clear-yes" type="button">Delete</button>' +
+        '<button class="linkbtn" id="clear-no" type="button">Keep</button></span>';
+    } else if (t.id === "clear-yes" || t.id === "clear-no") {
+      if (t.id === "clear-yes") {
+        sessions = []; saveSessions(sessions);
+        model.reset(); writeJSON(MODEL_KEY, model.toJSON());
+        current.total = 0; current.correct = 0; current.log = []; streak = 0;
+        viewId = null; reviewIdx = null;
+        renderScore(); renderLog(); renderFocus();
+      }
+      $("clear-slot").innerHTML = '<button class="linkbtn" id="clear-btn" type="button">Clear history</button>';
+      renderHistory();
+    }
+  });
+
+  newSession();
+  renderScore();
+  renderHistory();
+  renderLog();
+  nextQuestion();
+})();
+</script>
+
+</body></html>
