@@ -165,3 +165,23 @@ test('spelling merge prefers normal casing over ALL CAPS', () => {
   const { records } = C.cleanSheet(m, 0, C.autoMap(m[0], 'memberships'), 'memberships', {});
   assert.deepEqual(records.map((r) => r.type), ['Standard', 'Standard', 'Standard', 'Social', 'SU']);
 });
+
+test('imported costs match planned lines by phrase and type', () => {
+  const plan = [
+    { description: 'Umpire', type: 'fixed' },
+    { description: 'Minibus hire', type: 'fixed' },
+    { description: 'Hire', type: 'fixed' },
+    { description: 'Three-course dinner', type: 'variable' },
+  ];
+  assert.equal(F.matchPlannedLine(plan, 'Priya Shah – Umpire', null).description, 'Umpire');
+  assert.equal(F.matchPlannedLine(plan, 'Campus Travel – Minibus hire', null).description, 'Minibus hire');
+  assert.equal(F.matchPlannedLine(plan, 'Three-course dinner Grand Hotel', 'variable').description, 'Three-course dinner');
+  assert.equal(F.matchPlannedLine(plan, 'Three-course dinner Grand Hotel', 'fixed'), null);
+  assert.equal(F.matchPlannedLine(plan, 'Umpiring fee', null), null);
+});
+
+test('spelling merge also ignores punctuation ("J. Morgan" = "J Morgan")', () => {
+  const m = [['Coach', 'Total'], ['J. Morgan', 70], ['J. Morgan', 70], ['J Morgan', 70]];
+  const { records } = C.cleanSheet(m, 0, C.autoMap(m[0], 'externalHires'), 'externalHires', {});
+  assert.deepEqual(records.map((r) => r.provider), ['J. Morgan', 'J. Morgan', 'J. Morgan']);
+});

@@ -85,6 +85,23 @@
     return out;
   };
 
+  /**
+   * Find the planned cost line an imported cost belongs to: the planned
+   * description appears as a whole phrase in the record's text (e.g. plan
+   * "Umpire" matches "Priya Shah – Umpire"). The longest match wins; a record
+   * that states a different fixed/variable type never matches.
+   */
+  F.matchPlannedLine = (plannedLines, text, type) => {
+    const hay = ' ' + U.norm(text) + ' ';
+    let best = null;
+    for (const l of plannedLines) {
+      const d = U.norm(l.description);
+      if (!d || (type && l.type !== type)) continue;
+      if (hay.includes(' ' + d + ' ') && (!best || d.length > U.norm(best.description).length)) best = l;
+    }
+    return best;
+  };
+
   /** Profit at a given attendance, holding average price and variable cost per head. */
   F.profitAt = (s, n) => s.avgPrice * n - (s.fixed + s.varPerHead * n);
 

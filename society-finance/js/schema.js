@@ -13,6 +13,7 @@
     memberships: {
       label: 'Membership purchases',
       short: 'Memberships',
+      hint: 'One row per membership bought, e.g. an export from the Students’ Union shop or a sign-up form.',
       keywords: ['member', 'membership', 'subs', 'join'],
       dedupeDefault: true,
       fields: [
@@ -25,9 +26,10 @@
       ],
     },
     eventCosts: {
-      label: 'Event costs',
-      short: 'Event costs',
-      keywords: ['cost', 'expense', 'spend', 'budget', 'receipt'],
+      label: 'Expenses (event costs, kit, venue, admin)',
+      short: 'Expenses',
+      hint: 'Receipts or a spending log. Include the event name where a cost belongs to an event; leave it blank for general costs like kit or insurance.',
+      keywords: ['cost', 'expense', 'spend', 'budget', 'receipt', 'purchase'],
       dedupeDefault: false,
       fields: [
         DATE,
@@ -39,8 +41,9 @@
       ],
     },
     externalHires: {
-      label: 'External hires (coaches, instructors, services)',
-      short: 'External hires',
+      label: 'Coaching & external hires',
+      short: 'Coaching & hires',
+      hint: 'Invoices for coaches, instructors, referees or other people/services you pay. Hours and rate are optional.',
       keywords: ['coach', 'hire', 'instructor', 'trainer', 'external', 'freelance'],
       dedupeDefault: false,
       fields: [
@@ -62,6 +65,7 @@
     ticketSales: {
       label: 'Event ticket sales',
       short: 'Ticket sales',
+      hint: 'One row per order or per ticket type, with the event name. Works for one-off events and pay-per-session activities.',
       keywords: ['ticket', 'sales', 'sold', 'booking', 'entry'],
       dedupeDefault: false,
       fields: [
@@ -87,6 +91,40 @@
           fix('Price calculated from amount ÷ quantity');
         }
       },
+    },
+  };
+
+  SF.categories.otherIncome = {
+    label: 'Other income (sponsorship, grants, fundraising)',
+    short: 'Other income',
+    hint: 'Sponsorship deals, Students’ Union grants, donations and fundraising. Add an event name if the money was for one event.',
+    keywords: ['sponsor', 'grant', 'donation', 'fundrais', 'income', 'funding'],
+    dedupeDefault: false,
+    fields: [
+      DATE,
+      { key: 'source', label: 'From (sponsor / funder)', type: 'text', canonical: true, syn: ['source', 'sponsor', 'funder', 'from', 'payer', 'organisation', 'company', 'donor'] },
+      { key: 'description', label: 'Description', type: 'text', syn: ['description', 'details', 'purpose', 'item', 'type', 'reason'] },
+      { ...EVENT, label: 'Event (optional)' },
+      { key: 'amount', label: 'Amount received', type: 'money', required: true, syn: ['amount', 'received', 'total', 'value', 'income', 'paid', 'gross'] },
+    ],
+  };
+
+  SF.categories.attendance = {
+    label: 'Attendance / sign-in sheets',
+    short: 'Attendance',
+    hint: 'Registers for training, socials or events: either one row per person per session, or one row per session with a head count. No money needed.',
+    keywords: ['attendance', 'register', 'sign in', 'signin', 'check in', 'checkin', 'headcount'],
+    dedupeDefault: true,
+    noMoney: true,
+    fields: [
+      { ...DATE, required: true },
+      { ...EVENT, syn: ['event', 'session', 'activity', 'training', 'event name', 'class'] },
+      { key: 'name', label: 'Name (optional)', type: 'text', syn: ['name', 'full name', 'attendee', 'member', 'student'] },
+      { key: 'memberStatus', label: 'Member or guest (optional)', type: 'text', canonical: true, syn: ['member status', 'member?', 'status', 'membership', 'guest'] },
+      { key: 'count', label: 'Head count (optional)', type: 'number', syn: ['count', 'headcount', 'head count', 'attendees', 'attendance', 'number', 'no attended', 'people'] },
+    ],
+    derive(r, fix) {
+      if (r.count == null) { r.count = 1; fix('Each row counted as one attendee'); }
     },
   };
 

@@ -8,10 +8,16 @@
 
   const blank = () => ({
     version: 1,
-    settings: { currency: '£', fyStartMonth: 8, societyName: '' },
+    settings: { currency: '£', fyStartMonth: 8, societyName: '', openingBalance: null },
     records: Object.fromEntries(SF.categoryKeys.map((k) => [k, []])),
     imports: [], // { id, fileName, sheet, category, count, at }
-    events: [],
+    events: [], // event budget planner
+    eventAliases: {}, // normalised event name -> name it is merged into
+    eventMeta: {}, // event key -> { goal, kind, capacity, date }
+    aiSummaries: {},
+    budget: null,
+    planMembership: {},
+    reportNotes: {},
   });
 
   function upgrade(d) {
@@ -19,6 +25,7 @@
     const out = { ...b, ...d, settings: { ...b.settings, ...(d.settings || {}) } };
     out.records = { ...b.records, ...(d.records || {}) };
     out.imports = d.imports || [];
+    for (const k of ['eventAliases', 'eventMeta', 'aiSummaries', 'planMembership', 'reportNotes']) out[k] = d[k] || {};
     out.events = (d.events || []).map((e) => ({ tickets: [], plannedCosts: [], actualCosts: [], ...e }));
     return out;
   }
@@ -26,6 +33,7 @@
   const listeners = [];
   const S = (SF.store = {
     data: blank(),
+    version: 0, // bumps on every save so cached models know to rebuild
     onSave(fn) { listeners.push(fn); },
     load() {
       try {
@@ -37,6 +45,7 @@
       return S.data;
     },
     save() {
+      S.version++;
       try {
         localStorage.setItem(KEY, JSON.stringify(S.data));
         listeners.forEach((fn) => fn(null));

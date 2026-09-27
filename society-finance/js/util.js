@@ -87,6 +87,19 @@
     return node;
   };
 
+  // Pages build UI with optional parts (`cond ? node : null`). Native append()
+  // would print "null" for those, so skip empty values app-wide.
+  if (typeof Element !== 'undefined') {
+    for (const proto of [Element.prototype, DocumentFragment.prototype]) {
+      for (const name of ['append', 'prepend']) {
+        const native = proto[name];
+        proto[name] = function (...nodes) {
+          return native.apply(this, nodes.flat(Infinity).filter((n) => n !== null && n !== undefined && n !== false));
+        };
+      }
+    }
+  }
+
   U.clear = (node) => {
     while (node.firstChild) node.removeChild(node.firstChild);
     return node;

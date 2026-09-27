@@ -238,11 +238,12 @@
 
   // ---------- pulling from imported data ----------
 
-  const matchName = (ev) => U.norm(ev.linkName || ev.name);
+  const matchName = (ev) => SF.master.resolveKey(S.data, ev.linkName || ev.name);
+  const keyOf = (name) => SF.master.resolveKey(S.data, name);
 
   function pullTickets(ev) {
     const target = matchName(ev);
-    const recs = S.data.records.ticketSales.filter((r) => U.norm(r.event) === target);
+    const recs = S.data.records.ticketSales.filter((r) => keyOf(r.event) === target);
     if (!recs.length) {
       SF.app.toast(`No imported ticket sales found for "${ev.linkName || ev.name}". Check the event name matches the spreadsheet.`, true);
       return;
@@ -280,14 +281,24 @@
     const target = matchName(ev);
     const have = new Set(ev.actualCosts.map((l) => l.sourceId).filter(Boolean));
     const found = [];
+    let matched = 0;
+    // Line the record up with its planned line when one fits, so the
+    // planned-vs-actual comparison pairs them.
+    const add = (text, fallback, type, rec) => {
+      const plan = F.matchPlannedLine(ev.plannedCosts, text, type);
+      if (plan) matched++;
+      found.push({ description: plan ? plan.description : fallback, type: type || (plan && plan.type) || 'fixed', amount: rec.amount, sourceId: rec.id, notes: rec.notes });
+    };
     for (const r of S.data.records.eventCosts) {
-      if (U.norm(r.event) !== target || have.has(r.id)) continue;
-      found.push({ description: r.item || r.supplier || 'Cost', type: r.costType || 'fixed', amount: r.amount, notes: [r.supplier, r.date && U.fmtDate(r.date)].filter(Boolean).join(' · '), sourceId: r.id });
+      if (keyOf(r.event) !== target || have.has(r.id)) continue;
+      add([r.item, r.supplier].join(' '), r.item || r.supplier || 'Cost', r.costType,
+        { amount: r.amount, id: r.id, notes: [r.item, r.supplier, r.date && U.fmtDate(r.date)].filter(Boolean).join(' · ') });
     }
     for (const r of S.data.records.externalHires) {
-      if (U.norm(r.event) !== target || have.has(r.id)) continue;
-      found.push({ description: [r.provider, r.service].filter(Boolean).join(' – ') || 'External hire', type: 'fixed', amount: r.amount,
-        notes: [r.hours != null && r.rate != null ? `${U.fmtNum(r.hours, 2)} × ${money(r.rate)}` : null, r.date && U.fmtDate(r.date)].filter(Boolean).join(' · '), sourceId: r.id });
+      if (keyOf(r.event) !== target || have.has(r.id)) continue;
+      const desc = [r.provider, r.service].filter(Boolean).join(' – ') || 'External hire';
+      add(desc, desc, null,
+        { amount: r.amount, id: r.id, notes: [desc, r.hours != null && r.rate != null ? `${U.fmtNum(r.hours, 2)} × ${money(r.rate)}` : null, r.date && U.fmtDate(r.date)].filter(Boolean).join(' · ') });
     }
     if (!found.length) {
       SF.app.toast(have.size ? 'No new cost records to add for this event.' : `No imported costs or hires found for "${ev.linkName || ev.name}".`, !have.size);
@@ -296,7 +307,10 @@
     for (const f of found) ev.actualCosts.push({ id: U.uid(), description: f.description, type: f.type, unitCost: f.amount, qty: 1, notes: f.notes, sourceId: f.sourceId });
     S.save();
     E.render();
-    SF.app.toast(`Added ${found.length} cost line${found.length > 1 ? 's' : ''} from imported data. Check each is marked fixed or variable correctly.`);
+    const unmatched = found.length - matched;
+    SF.app.toast(`Added ${found.length} cost line${found.length > 1 ? 's' : ''} from imported data` +
+      (ev.plannedCosts.length ? ` (${matched} matched to planned lines${unmatched ? `, ${unmatched} unplanned` : ''})` : '') +
+      '. Check each is marked fixed or variable correctly.');
   }
 
   // ---------- analysis ----------
@@ -500,15 +514,25 @@
 
   E.select = (id) => { currentId = id; };
 
-  // Charts are drawn at their real pixel width, so redraw when that changes.
-  let resizeTimer = null, lastWidth = 0;
-  root.addEventListener && root.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      const host = document.getElementById('event-analysis');
-      if (!host || !host.offsetParent || host.clientWidth === lastWidth) return;
-      lastWidth = host.clientWidth;
-      renderAnalysis();
-    }, 150);
-  });
+  /** Start a new plan from an event's actual figures (from the master dataset). */
+  E.createFromActuals = function (e) {
+    const n = e.attendees || 0;
+    const r2 = U.round2;
+    const ev = {
+      id: U.uid(), name: `${e.name} (next)`, date: '', linkName: e.name,
+      notes: `Started from ${e.name} actuals${e.kind === 'recurring' ? ` (${e.sessionCount} sessions, figures are for the whole run)` : ''}.`,
+      tickets: e.tiers.length
+        ? e.tiers.map((t) => ({ id: U.uid(), name: t.name, price: r2(t.avgPrice), expectedQty: t.qty, actualQty: '' }))
+        : [{ id: U.uid(), name: 'Standard', price: '', expectedQty: n || '', actualQty: '' }],
+      plannedCosts: e.costLines.map((l) => (l.costType === 'variable' && n
+        ? { id: U.uid(), description: l.name, type: 'variable', unitCost: r2(l.amount / n), qty: '', notes: `last time ${money(l.amount)} for ${n} people` }
+        : { id: U.uid(), description: l.name, type: 'fixed', unitCost: r2(l.amount), qty: '', notes: l.count > 1 ? `${l.count} payments last time` : '' })),
+      actualCosts: [],
+    };
+    S.data.events.push(ev);
+    currentId = ev.id;
+    S.save();
+    location.hash = '#/plan/event';
+    SF.app.toast(`New plan started from ${e.name}. Adjust the numbers for next time.`);
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

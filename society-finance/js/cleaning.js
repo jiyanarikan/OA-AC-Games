@@ -171,6 +171,13 @@
       if (key === 'ticketSales' && mapping.ticketType >= 0) score += 1;
       if (key === 'eventCosts' && mapping.costType >= 0) score += 1;
       if (key === 'memberships' && mapping.type >= 0 && /member/.test(U.norm((matrix[hr] || []).join(' ')))) score += 1;
+      if (key === 'attendance') {
+        // Registers have no money column; anything with amounts is something else.
+        const hasMoney = SF.categoryKeys.some((k) => k !== 'attendance' && C.autoMap(matrix[hr] || [], k).amount >= 0);
+        if (hasMoney) score -= 4;
+        if (mapping.count >= 0) score += 1;
+      }
+      if (key === 'otherIncome' && mapping.source >= 0 && /sponsor|grant|fund|donat/.test(U.norm((matrix[hr] || []).join(' ')))) score += 2;
       if (cat.keywords.some((k) => hint.includes(k))) score += 3;
       if (score > bestScore) { bestScore = score; best = key; }
     }
@@ -188,7 +195,7 @@
     for (const r of records) {
       const v = r[key];
       if (v == null) continue;
-      const k = v.toLowerCase();
+      const k = U.norm(v) || v.toLowerCase(); // "J. Morgan" and "j morgan" are one name
       if (!groups.has(k)) groups.set(k, new Map());
       const g = groups.get(k);
       g.set(v, (g.get(v) || 0) + 1);
@@ -210,7 +217,7 @@
     let changed = 0;
     for (const r of records) {
       if (r[key] == null) continue;
-      const w = pick.get(r[key].toLowerCase());
+      const w = pick.get(U.norm(r[key]) || r[key].toLowerCase());
       if (w !== r[key]) { r[key] = w; changed++; }
     }
     return { merges, changed };

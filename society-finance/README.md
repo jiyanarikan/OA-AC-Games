@@ -1,61 +1,62 @@
 # Society Finance
 
-A browser tool to help a university society committee put its financial reports together with less work: it cleans the spreadsheets you already have, and plans and reviews individual events.
+A tool that saves a university society committee time on its finances. Upload the spreadsheets you already keep; it cleans them into one master dataset and turns that into charts, tables, event reviews, pricing advice, budgets and a ready-made annual report.
 
-**To use it:** download [`dist/society-finance.html`](dist/society-finance.html) (one self-contained file) and double-click it. It opens in Safari, Chrome, Edge or Firefox, with no install and no internet needed. Or open `index.html` from a copy of this whole folder.
+It is built for **societies, not businesses**. The goal is the best experience for members with sustainable finances, so every event is judged against its purpose: a fundraiser should make money, a social should roughly pay for itself, and training can be a member benefit the society chooses to fund.
 
-Your data is saved in the browser you use, so keep using the same browser and keep the file in the same place. Use **Settings → Download backup** to keep a copy or hand it to the next committee.
+## Using it
 
-**On a Mac with Safari:** on GitHub, open `dist/society-finance.html` and click **Download raw file**, then double-click it in Downloads (or right-click → Open With → Safari). Exports and backups are saved to your Downloads folder.
+- **Easiest:** download [`dist/society-finance.html`](dist/society-finance.html) (one self-contained file) and double-click it. It works in Safari, Chrome, Edge or Firefox, with no install and no internet needed (except for the optional Claude summaries).
+- **On a Mac with Safari:** on GitHub open `dist/society-finance.html`, click **Download raw file**, then double-click it in Downloads.
+- **iPhone / iPad:** Safari won't run a page opened from the Files app, so the tool needs to be hosted online (e.g. GitHub Pages).
+- **Try it first:** Settings → **Load demo data** (two years of a made-up hockey society), or upload the messy example files in [`samples/`](samples/).
 
-**On an iPhone or iPad:** Safari won't run a web page opened from the Files app, so the tool has to be hosted online (for example with GitHub Pages).
+Data is saved in the browser you use and never uploaded. Use **Settings → Download backup** to keep a copy, move computers or hand over to next year's committee.
 
-To try it quickly, go to **Settings → Load demo data**, or import the messy example workbooks in [`samples/`](samples/).
+## The five steps
 
-## What it does so far
+The sidebar walks through the process in order.
 
-### 1. Clean and store data (Data tab)
-Upload an `.xlsx` or `.csv` file. The tool:
-- **detects the category**: membership purchases, event costs, external hires (coaches, instructors) or ticket sales
-- **finds the heading row**, even under a title or blank rows, and **matches your columns** to the fields it needs (you can change any match)
-- **cleans** the data: reads `£1,200.00` / `(20.00)` / `Free` as numbers, converts UK, ISO and text dates (plus Excel date numbers) to one date format, trims extra spaces, merges spelling variants (`standard`, `STANDARD ` → `Standard`), drops total, blank and unreadable rows, and can remove duplicates
-- **works out missing values**: amount = price × quantity, or hours × rate
-- **tags each record with its financial year** (the start month is set in Settings; August by default)
-- shows a **cleaning report** listing every change and every row it left out, with the reason, before you save
-- skips rows that are already stored, so uploading the same file twice doesn't double-count
-- keeps an import history with **Undo**, and exports any category or year back to Excel
+1. **Add data.** Drop in any number of `.xlsx` / `.csv` files at once. Each sheet is detected as one of six types and cleaned (title rows, `£1,200.00` text, `(20.00)` negatives, UK/ISO/text/Excel dates, spelling variants such as `J. Morgan` / `J Morgan`, total rows, duplicates). You review each one before it's saved:
+   - Memberships
+   - Ticket sales
+   - Other income (sponsorship, grants)
+   - Expenses (event costs, kit, admin)
+   - Coaching & hires
+   - Attendance / sign-in sheets
+2. **Check data.** The **master dataset**: every transaction combined and linked to events. It flags problems, suggests merging duplicate event names, and lets you set each event's **purpose** (fundraiser / break even / member benefit), its type (auto-detected one-off vs weekly/fortnightly/monthly), and its capacity.
+3. **Analyse.** Choose an analysis. Every chart can be grouped by **week, month, term, quarter or year**, switches to a table, and downloads as Excel.
+   - *Overview*: income vs spending, where money comes from and goes, key findings.
+   - *Events*: a timeline of the year (recurring sessions vs one-off events), a reach-vs-value map, and ratings. Each event page adds per-session attendance and results or the ticket sales build-up, ticket tiers, cost breakdown, break-even, and suggestions on **pricing, frequency and costs**.
+   - *Income*, *Spending*, *Cash flow & balance* (running bank balance, lowest point), *Memberships* (sign-ups over time, types, what members get back), *Coaching & hires* (per session / hour / person), *Compare years*.
+4. **Plan.**
+   - *Event budget planner*: planned vs actual, fixed/variable costs, break-even. It can start from a past event's actuals.
+   - *Membership price calculator*: break-even fee, a price for each membership type, and a what-if table of members against fee.
+   - *Next year's budget*: starts from last year's figures, editable event by event.
+5. **Report.** A printable annual report (print or save as PDF) with committee comments, plus an Excel pack of every table.
 
-### 2. Event finance: plan and track (Events tab)
-For each event:
-- **Ticket sales**: one row per price tier, with expected and actual sales, and income worked out from them
-- **Planned costs (before the event)** and **Actual costs (after the event)**, each split into
-  - **Fixed** costs, which stay the same however many people come (venue, DJ, coach fee)
-  - **Variable** costs, which change with the number of attendees (food, wristbands). Leave Qty blank and it uses the attendee count.
-- **Fill actual sales from imported data** and **Add costs from imported data** pull in records from the Data tab whose event name matches
-- **Analysis**
-  - net profit (planned, actual and the difference), margin, cost per attendee
-  - planned vs actual for each metric and for each cost line (overspends, savings, unplanned costs)
-  - **break-even**: fixed costs ÷ (average ticket price − variable cost per attendee), with margin of safety, the ticket price needed to break even at the expected attendance, and a cost/income chart
-  - key findings written in plain English
-- **Export to Excel**: summary, ticket sales and cost sheets, with working formulas
-- **Duplicate as new plan**: start next year's event from this year's plan
+### AI summaries (optional)
+Each summary card offers:
+- **Write with Claude:** needs an Anthropic API key, added in Settings. The key is stored in this browser only and is never included in backups.
+- **Copy for Claude.ai:** copies the same prompt so you can paste it into claude.ai, with no key needed.
 
-## Planned next
-- Annual report: combine the stored data by financial year (income vs spend, membership trends, event performance, charts)
-- Pricing and budget recommendations for future membership prices and event budgets
+Only totals and per-event figures are sent, never member names. Automatic insights (no AI) are always shown alongside.
 
 ## Development
-Plain HTML, CSS and JavaScript with no build step. Everything the app needs to run is in the repo; ExcelJS 4.4.0 (MIT licence) is bundled in `lib/`.
+Plain HTML, CSS and JavaScript with no build step needed to run it.
 
 ```
-index.html          app shell
-css/app.css         styles (light + dark)
-js/schema.js        data categories and column-name synonyms
-js/cleaning.js      header detection, column mapping, cleaning, de-duplication
-js/finance.js       net profit, break-even, variance, findings
-js/charts.js        SVG charts
-js/ui-*.js, app.js  screens
-tests/              node --test tests/*.test.js
-tools/              build-single.js rebuilds dist/society-finance.html after changes;
-                    make-samples.js regenerates samples/ (needs `npm install exceljs`)
+index.html              app shell (sidebar + router)
+js/schema.js            the six data types and column-name synonyms
+js/cleaning.js          header detection, column matching, cleaning, de-duplication
+js/master.js            master dataset, event detection (one-off/recurring), periods, aggregation
+js/insights.js          society-focused ratings and recommendations
+js/finance.js           event planner maths (net profit, break-even, variance)
+js/charts.js            SVG charts (bars, lines, ranking, scatter, timeline, break-even)
+js/ai.js                Claude summaries (bundled Anthropic SDK) + copy-for-Claude.ai
+js/ui/*.js, js/app.js   pages and navigation
+lib/                    ExcelJS 4.4.0 and the Anthropic TypeScript SDK (browser bundles, MIT)
+tests/                  node --test tests/*.test.js
+tools/build-single.js   rebuilds dist/society-finance.html after any change
+tools/make-samples.js   regenerates samples/ (needs `npm install exceljs`)
 ```
