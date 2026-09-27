@@ -2,7 +2,13 @@
 
 A browser tool to help a university society committee put its financial reports together with less work: it cleans the spreadsheets you already have, and plans and reviews individual events.
 
-**To use it:** open `index.html` in Chrome, Edge, Firefox or Safari. You don't need to install anything or be online. Your data stays in that browser; use **Settings → Download backup** to keep a copy or hand it to the next committee.
+**To use it:** download [`dist/society-finance.html`](dist/society-finance.html) (one self-contained file) and double-click it. It opens in Safari, Chrome, Edge or Firefox, with no install and no internet needed. Or open `index.html` from a copy of this whole folder.
+
+Your data is saved in the browser you use, so keep using the same browser and keep the file in the same place. Use **Settings → Download backup** to keep a copy or hand it to the next committee.
+
+**On a Mac with Safari:** on GitHub, open `dist/society-finance.html` and click **Download raw file**, then double-click it in Downloads (or right-click → Open With → Safari). Exports and backups are saved to your Downloads folder.
+
+**On an iPhone or iPad:** Safari won't run a web page opened from the Files app, so the tool has to be hosted online (for example with GitHub Pages).
 
 To try it quickly, go to **Settings → Load demo data**, or import the messy example workbooks in [`samples/`](samples/).
 
@@ -50,5 +56,6 @@ js/finance.js       net profit, break-even, variance, findings
 js/charts.js        SVG charts
 js/ui-*.js, app.js  screens
 tests/              node --test tests/*.test.js
-tools/              make-samples.js regenerates samples/ (needs `npm install exceljs`)
+tools/              build-single.js rebuilds dist/society-finance.html after changes;
+                    make-samples.js regenerates samples/ (needs `npm install exceljs`)
 ```
